@@ -1,9 +1,0 @@
-  kafka {
-    codec => "json"
-    topics => ["{{.Topic}}"]
-    bootstrap_servers => "10.32.12.12:9092"
-    auto_offset_reset => "latest"
-    group_id => "{{.GroupId}}"
-    decorate_events => true
-    type => "{{.Index}}"
-  }
