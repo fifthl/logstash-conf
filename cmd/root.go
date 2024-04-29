@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"github.com/spf13/cobra"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -11,15 +13,17 @@ import (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "c", "", "*specify logstash.conf file path")
-	rootCmd.PersistentFlags().StringVarP(&topic, "topic", "t", "", "*kafka topic name, example: test.abc")
-	rootCmd.PersistentFlags().StringVarP(&group, "group", "g", "donet", "specify kafka group id")
+	rootCmd.PersistentFlags().StringVarP(&conf, "conf", "", "", "*specify logstash.conf file path")
+	rootCmd.PersistentFlags().StringVarP(&topic, "topic", "", "", "*kafka topic name, example: test.abc")
+	rootCmd.PersistentFlags().StringVarP(&group, "group", "", "donet", "specify kafka group id")
 
 }
 
-const (
-	inputTmpl  = "cmd/templates/input.template"
-	outputTmpl = "cmd/templates/output.template"
+var (
+	//go:embed templates/input.template
+	inputContent string
+	//go:embed templates/output.template
+	outputContent string
 )
 
 var (
@@ -32,7 +36,7 @@ var (
 	// 全局 Cmd
 	rootCmd = &cobra.Command{
 		Use:     "logstash-conf",
-		Example: "logstash-conf [--confDir] [--topic] [--group]",
+		Example: "logstash-conf [--conf] [--topic] [--group]",
 		Run:     RunFunc,
 	}
 )
@@ -56,6 +60,7 @@ func formatData(topic, group, conf string) Kafka {
 	}
 
 	if cont := strings.Contains(topic, "."); !cont == true {
+		fmt.Println(topic)
 		fmt.Println("topic format is incorrect, sample value: test.abc")
 		os.Exit(1)
 	}
@@ -76,7 +81,10 @@ func formatData(topic, group, conf string) Kafka {
 func generateInputStage(data Kafka) string {
 	var tpl bytes.Buffer
 
-	tmpl := template.Must(template.ParseFiles(inputTmpl))
+	tmpl, _err := template.New("inputTmpl").Parse(inputContent)
+	if _err != nil {
+		log.Fatalf("template parse error: %v", _err)
+	}
 
 	// 将传入的flag写入模板
 	if err := tmpl.Execute(&tpl, data); err != nil {
@@ -89,8 +97,10 @@ func generateInputStage(data Kafka) string {
 
 // 生成 input 阶段配置
 func generateOutputStage(data Kafka) string {
-
-	tmpl := template.Must(template.ParseFiles(outputTmpl))
+	tmpl, _err := template.New("outputTmpl").Parse(outputContent)
+	if _err != nil {
+		log.Fatalf("template parse error: %v", _err)
+	}
 
 	var tpl bytes.Buffer
 
